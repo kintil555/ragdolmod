@@ -18,10 +18,11 @@ import java.util.UUID;
 /**
  * GameRendererMixin
  *
- * Injects into renderWorld(RenderTickCounter) to pre-compute
- * smoothed camera roll/pitch offsets each frame for ragdoll physics.
+ * Injects into renderWorld to pre-compute smoothed camera roll/pitch
+ * offsets each frame for ragdoll physics.
  *
- * Yarn 1.21.1: renderWorld(Lnet/minecraft/class_9779;)V
+ * Uses intermediary method selector (method_3188) with remap=false
+ * to avoid refmap resolution issues on MC 1.21.1.
  */
 @Environment(EnvType.CLIENT)
 @Mixin(GameRenderer.class)
@@ -29,12 +30,14 @@ public abstract class GameRendererMixin {
 
     @Shadow @Final MinecraftClient client;
 
-    /** Smoothed roll offset accumulated per frame (degrees). */
     private float ragdoll_smoothRoll  = 0f;
-    /** Smoothed pitch offset accumulated per frame (degrees). */
     private float ragdoll_smoothPitch = 0f;
 
-    @Inject(method = "renderWorld", at = @At("HEAD"))
+    @Inject(
+        method = "method_3188",
+        at = @At("HEAD"),
+        remap = false
+    )
     private void onRenderWorldHead(RenderTickCounter tickCounter, CallbackInfo ci) {
         if (client.player == null) return;
 
