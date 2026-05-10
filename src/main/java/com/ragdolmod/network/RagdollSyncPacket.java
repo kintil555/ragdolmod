@@ -1,8 +1,8 @@
 package com.ragdolmod.network;
 
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 
@@ -25,82 +25,45 @@ import java.util.UUID;
  *   float   velocityZ
  *   float   stumbleIntensity
  */
-public class RagdollSyncPacket {
+public record RagdollSyncPacket(
+        UUID playerUUID,
+        float tiltAngle,
+        float swayAngle,
+        float headLagAngle,
+        float cameraRoll,
+        float cameraPitchBump,
+        float velocityX,
+        float velocityZ,
+        float stumbleIntensity
+) implements CustomPayload {
 
-    public static final Identifier ID =
-            Identifier.of("ragdolmod", "ragdoll_sync");
+    public static final CustomPayload.Id<RagdollSyncPacket> ID =
+            new CustomPayload.Id<>(Identifier.of("ragdolmod", "ragdoll_sync"));
 
-    // ─────────────────────────────────────────────────────────────────
-    // Data fields (decoded on client)
-    // ─────────────────────────────────────────────────────────────────
+    public static final PacketCodec<PacketByteBuf, RagdollSyncPacket> CODEC =
+            PacketCodec.of(
+                    (pkt, buf) -> {
+                        buf.writeUuid(pkt.playerUUID());
+                        buf.writeFloat(pkt.tiltAngle());
+                        buf.writeFloat(pkt.swayAngle());
+                        buf.writeFloat(pkt.headLagAngle());
+                        buf.writeFloat(pkt.cameraRoll());
+                        buf.writeFloat(pkt.cameraPitchBump());
+                        buf.writeFloat(pkt.velocityX());
+                        buf.writeFloat(pkt.velocityZ());
+                        buf.writeFloat(pkt.stumbleIntensity());
+                    },
+                    buf -> new RagdollSyncPacket(
+                            buf.readUuid(),
+                            buf.readFloat(), buf.readFloat(), buf.readFloat(),
+                            buf.readFloat(), buf.readFloat(),
+                            buf.readFloat(), buf.readFloat(), buf.readFloat()
+                    )
+            );
 
-    public final UUID  playerUUID;
-    public final float tiltAngle;
-    public final float swayAngle;
-    public final float headLagAngle;
-    public final float cameraRoll;
-    public final float cameraPitchBump;
-    public final float velocityX;
-    public final float velocityZ;
-    public final float stumbleIntensity;
-
-    // ─────────────────────────────────────────────────────────────────
-    // Constructor (for building outgoing packets)
-    // ─────────────────────────────────────────────────────────────────
-
-    public RagdollSyncPacket(UUID playerUUID,
-                              float tiltAngle,
-                              float swayAngle,
-                              float headLagAngle,
-                              float cameraRoll,
-                              float cameraPitchBump,
-                              float velocityX,
-                              float velocityZ,
-                              float stumbleIntensity) {
-        this.playerUUID       = playerUUID;
-        this.tiltAngle        = tiltAngle;
-        this.swayAngle        = swayAngle;
-        this.headLagAngle     = headLagAngle;
-        this.cameraRoll       = cameraRoll;
-        this.cameraPitchBump  = cameraPitchBump;
-        this.velocityX        = velocityX;
-        this.velocityZ        = velocityZ;
-        this.stumbleIntensity = stumbleIntensity;
-    }
-
-    // ─────────────────────────────────────────────────────────────────
-    // Decode from incoming buffer (client side)
-    // ─────────────────────────────────────────────────────────────────
-
-    public static RagdollSyncPacket decode(PacketByteBuf buf) {
-        UUID  uuid      = buf.readUuid();
-        float tilt      = buf.readFloat();
-        float sway      = buf.readFloat();
-        float headLag   = buf.readFloat();
-        float camRoll   = buf.readFloat();
-        float camPitch  = buf.readFloat();
-        float vx        = buf.readFloat();
-        float vz        = buf.readFloat();
-        float stumble   = buf.readFloat();
-        return new RagdollSyncPacket(uuid, tilt, sway, headLag, camRoll, camPitch, vx, vz, stumble);
-    }
-
-    // ─────────────────────────────────────────────────────────────────
-    // Encode to buffer (server side)
-    // ─────────────────────────────────────────────────────────────────
-
-    public PacketByteBuf encode() {
-        PacketByteBuf buf = PacketByteBufs.create();
-        buf.writeUuid(playerUUID);
-        buf.writeFloat(tiltAngle);
-        buf.writeFloat(swayAngle);
-        buf.writeFloat(headLagAngle);
-        buf.writeFloat(cameraRoll);
-        buf.writeFloat(cameraPitchBump);
-        buf.writeFloat(velocityX);
-        buf.writeFloat(velocityZ);
-        buf.writeFloat(stumbleIntensity);
-        return buf;
+    @Override
+    public CustomPayload.Id<? extends CustomPayload> getId() {
+        return ID;
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -108,18 +71,16 @@ public class RagdollSyncPacket {
     // ─────────────────────────────────────────────────────────────────
 
     /**
-     * Send this packet to all players within 64 blocks of {@code origin}
-     * (excluding the origin player themselves if selfExclude=true).
+     * Send this packet to all players within 64 blocks of {@code origin}.
      *
      * @param origin       the player whose state is being synced
      * @param selfExclude  whether to skip sending to origin themselves
      */
     public void sendToTracking(ServerPlayerEntity origin, boolean selfExclude) {
-        PacketByteBuf buf = encode();
         for (ServerPlayerEntity nearby : origin.getServerWorld().getPlayers()) {
             if (selfExclude && nearby == origin) continue;
             if (nearby.squaredDistanceTo(origin) > 64 * 64) continue;
-            ServerPlayNetworking.send(nearby, ID, buf);
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(nearby, this);
         }
     }
 
@@ -127,6 +88,6 @@ public class RagdollSyncPacket {
      * Send this packet to the player themselves (for their own camera/animation).
      */
     public void sendToSelf(ServerPlayerEntity player) {
-        ServerPlayNetworking.send(player, ID, encode());
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, this);
     }
 }

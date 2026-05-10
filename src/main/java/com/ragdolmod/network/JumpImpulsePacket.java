@@ -1,7 +1,8 @@
 package com.ragdolmod.network;
 
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
 /**
@@ -16,30 +17,24 @@ import net.minecraft.util.Identifier;
  *   float  strafeInput    (-1..1)
  *   float  yaw            (degrees)
  */
-public class JumpImpulsePacket {
+public record JumpImpulsePacket(float forwardInput, float strafeInput, float yaw)
+        implements CustomPayload {
 
-    public static final Identifier ID =
-            Identifier.of("ragdolmod", "jump_impulse");
+    public static final CustomPayload.Id<JumpImpulsePacket> ID =
+            new CustomPayload.Id<>(Identifier.of("ragdolmod", "jump_impulse"));
 
-    public final float forwardInput;
-    public final float strafeInput;
-    public final float yaw;
+    public static final PacketCodec<PacketByteBuf, JumpImpulsePacket> CODEC =
+            PacketCodec.of(
+                    (pkt, buf) -> {
+                        buf.writeFloat(pkt.forwardInput());
+                        buf.writeFloat(pkt.strafeInput());
+                        buf.writeFloat(pkt.yaw());
+                    },
+                    buf -> new JumpImpulsePacket(buf.readFloat(), buf.readFloat(), buf.readFloat())
+            );
 
-    public JumpImpulsePacket(float forwardInput, float strafeInput, float yaw) {
-        this.forwardInput = forwardInput;
-        this.strafeInput  = strafeInput;
-        this.yaw          = yaw;
-    }
-
-    public static JumpImpulsePacket decode(PacketByteBuf buf) {
-        return new JumpImpulsePacket(buf.readFloat(), buf.readFloat(), buf.readFloat());
-    }
-
-    public PacketByteBuf encode() {
-        PacketByteBuf buf = PacketByteBufs.create();
-        buf.writeFloat(forwardInput);
-        buf.writeFloat(strafeInput);
-        buf.writeFloat(yaw);
-        return buf;
+    @Override
+    public CustomPayload.Id<? extends CustomPayload> getId() {
+        return ID;
     }
 }
