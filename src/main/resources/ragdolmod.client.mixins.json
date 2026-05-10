@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.ragdolmod.mixin.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ClientPlayerEntityMixin",
+    "GameRendererMixin",
+    "CameraAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "ragdolmod",
+  "version": "${version}",
+  "name": "RagdolMod",
+  "description": "Physics-based ragdoll movement system for Minecraft. Experience realistic floppy, unstable, momentum-driven movement.",
+  "authors": [
+    "RagdolMod Team"
+  ],
+  "contact": {
+    "homepage": "https://github.com/kintil555/ragdolmod",
+    "sources": "https://github.com/kintil555/ragdolmod"
+  },
+  "license": "MIT",
+  "icon": "assets/ragdolmod/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.ragdolmod.RagdolMod"
+    ],
+    "client": [
+      "com.ragdolmod.client.RagdolModClient"
+    ]
+  },
+  "mixins": [
+    "ragdolmod.mixins.json",
+    {
+      "config": "ragdolmod.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21.1",
+    "java": ">=21"
+  },
+  "suggests": {}
+}
