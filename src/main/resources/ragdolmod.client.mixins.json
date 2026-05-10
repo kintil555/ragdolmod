@@ -4,7 +4,6 @@
   "package": "com.ragdolmod.mixin.client",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "ClientPlayerEntityMixin",
     "GameRendererMixin",
     "CameraAccessor"
   ],
