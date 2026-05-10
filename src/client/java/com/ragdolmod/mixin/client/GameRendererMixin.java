@@ -41,7 +41,7 @@ public abstract class GameRendererMixin {
      * the yarn name to the correct intermediary/srg at build time.
      */
     @Inject(
-        method = "renderWorld",
+        method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V",
         at = @At("HEAD"),
         remap = true
     )
