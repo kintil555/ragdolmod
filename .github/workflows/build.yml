@@ -23,22 +23,27 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Cache Gradle dependencies
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.8'
+          cache-read-only: false
+
+      - name: Cache Loom
         uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            ~/.gradle/loom-cache
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+            ~/.gradle/caches/fabric-loom
+            ~/.gradle/caches/modules-2
+          key: ${{ runner.os }}-loom-${{ hashFiles('**/*.gradle*', 'gradle.properties') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ runner.os }}-loom-
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build mod
-        run: ./gradlew build --no-daemon
+        run: gradle build --no-daemon --stacktrace
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Xmx2G"
 
@@ -65,20 +70,24 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Cache Gradle
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.8'
+
+      - name: Cache Loom
         uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            ~/.gradle/loom-cache
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+            ~/.gradle/caches/fabric-loom
+            ~/.gradle/caches/modules-2
+          key: ${{ runner.os }}-loom-${{ hashFiles('**/*.gradle*', 'gradle.properties') }}
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build release jar
-        run: ./gradlew build --no-daemon
+        run: gradle build --no-daemon
 
       - name: Upload jar to GitHub Release
         uses: softprops/action-gh-release@v2
