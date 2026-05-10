@@ -41,9 +41,9 @@ public abstract class GameRendererMixin {
      * the yarn name to the correct intermediary/srg at build time.
      */
     @Inject(
-        method = "renderWorld(Lnet/minecraft/client/render/RenderTickCounter;)V",
+        method = "method_3188(Lnet/minecraft/class_9779;)V",
         at = @At("HEAD"),
-        remap = true
+        remap = false
     )
     private void onRenderWorldHead(RenderTickCounter tickCounter, CallbackInfo ci) {
         if (client.player == null) {
