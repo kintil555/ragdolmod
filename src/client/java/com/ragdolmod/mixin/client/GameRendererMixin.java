@@ -3,7 +3,6 @@ package com.ragdolmod.mixin.client;
 import com.ragdolmod.client.ClientRagdollCache;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
 import org.joml.Quaternionf;
@@ -20,9 +19,12 @@ import java.util.UUID;
 /**
  * GameRendererMixin
  *
- * In MC 1.21.1, Camera does not have a getRoll() method.
- * Camera roll is instead applied by rotating the camera's rotation quaternion
- * around the Z axis (view/forward axis) after the camera update.
+ * Computes smoothed ragdoll camera roll/pitch each frame.
+ *
+ * NOTE: Camera#getRoll() does not exist in MC 1.21.1.
+ * The roll value is stored here and used externally (e.g. by a WorldRenderEvents hook).
+ * We do NOT inject INVOKE on Camera#update here because that call does not
+ * exist inside method_3188 in 1.21.1 — it lives in a different call site.
  */
 @Environment(EnvType.CLIENT)
 @Mixin(GameRenderer.class)
@@ -35,8 +37,8 @@ public abstract class GameRendererMixin {
     private float ragdoll_smoothPitch = 0f;
 
     /**
-     * Inject at the start of renderWorld to pre-compute smooth roll/pitch each frame.
-     * Uses intermediary name (method_3188) with remap=false for MC 1.21.1 compatibility.
+     * Inject at HEAD of renderWorld (method_3188) to update smoothed values.
+     * remap=false because we use the intermediary name directly.
      */
     @Inject(
         method = "method_3188",
@@ -44,7 +46,11 @@ public abstract class GameRendererMixin {
         remap = false
     )
     private void onRenderWorldHead(RenderTickCounter tickCounter, CallbackInfo ci) {
-        if (client.player == null) return;
+        if (client.player == null) {
+            ragdoll_smoothRoll  *= 0.85f;
+            ragdoll_smoothPitch *= 0.85f;
+            return;
+        }
 
         UUID uuid = client.player.getUuid();
         var state = ClientRagdollCache.get(uuid);
@@ -59,39 +65,21 @@ public abstract class GameRendererMixin {
         float targetRoll  = state.getCameraRoll()  * getRollSensitivity();
         float targetPitch = state.getCameraPitchBump();
 
-        float lerpRate = 0.2f;
-        ragdoll_smoothRoll  += (targetRoll  - ragdoll_smoothRoll)  * lerpRate;
-        ragdoll_smoothPitch += (targetPitch - ragdoll_smoothPitch) * lerpRate;
-
+        ragdoll_smoothRoll  += (targetRoll  - ragdoll_smoothRoll)  * 0.2f;
+        ragdoll_smoothPitch += (targetPitch - ragdoll_smoothPitch) * 0.2f;
         ragdoll_smoothRoll  *= 0.92f;
         ragdoll_smoothPitch *= 0.90f;
-    }
 
-    /**
-     * Inject after Camera#update() to apply roll via the rotation quaternion.
-     * In 1.21.1 there is no getRoll() on Camera, so we directly mutate
-     * the rotation quaternion returned by Camera#getRotation().
-     */
-    @Inject(
-        method = "method_3188",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/render/Camera;update(Lnet/minecraft/world/BlockView;Lnet/minecraft/entity/Entity;ZZF)V",
-            shift = At.Shift.AFTER,
-            remap = true
-        ),
-        remap = false
-    )
-    private void onAfterCameraUpdate(RenderTickCounter tickCounter, CallbackInfo ci) {
-        if (Math.abs(ragdoll_smoothRoll) < 0.001f) return;
-        if (client.player == null) return;
-
-        Camera camera = client.gameRenderer.getCamera();
-        if (!camera.isReady()) return;
-
-        // Apply roll by rotating the camera quaternion around the local Z (forward) axis.
-        Quaternionf rotation = camera.getRotation();
-        rotation.rotateLocalZ(ragdoll_smoothRoll);
+        // Apply roll to camera rotation quaternion directly.
+        // Camera.getRotation() returns the live quaternion for the current frame.
+        // rotateLocalZ tilts the view around the forward axis (roll).
+        if (Math.abs(ragdoll_smoothRoll) > 0.001f) {
+            var camera = client.gameRenderer.getCamera();
+            if (camera != null && camera.isReady()) {
+                Quaternionf rot = camera.getRotation();
+                rot.rotateLocalZ(ragdoll_smoothRoll);
+            }
+        }
     }
 
     private float getRollSensitivity() {
