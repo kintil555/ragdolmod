@@ -33,7 +33,7 @@ public abstract class CameraAccessor {
      * Intercept getPitch() to add the landing pitch bump.
      * remap=true so Loom maps "getPitch" to the correct intermediary.
      */
-    @Inject(method = "getPitch", at = @At("RETURN"), cancellable = true, remap = true)
+    @Inject(method = "method_19329()F", at = @At("RETURN"), cancellable = true, remap = false)
     private void onGetPitch(CallbackInfoReturnable<Float> cir) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null) return;
