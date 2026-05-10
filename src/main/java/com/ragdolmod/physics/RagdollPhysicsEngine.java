@@ -1,5 +1,7 @@
 package com.ragdolmod.physics;
 
+import com.ragdolmod.config.RagdollConfig;
+
 /**
  * RagdollPhysicsEngine
  *
