@@ -19,12 +19,12 @@ import java.util.UUID;
 /**
  * GameRendererMixin
  *
- * Computes smoothed ragdoll camera roll/pitch each frame.
+ * Applies camera roll each frame by hooking into renderWorld.
  *
- * NOTE: Camera#getRoll() does not exist in MC 1.21.1.
- * The roll value is stored here and used externally (e.g. by a WorldRenderEvents hook).
- * We do NOT inject INVOKE on Camera#update here because that call does not
- * exist inside method_3188 in 1.21.1 — it lives in a different call site.
+ * FIX: Changed from remap=false + intermediary "method_3188" to
+ * remap=true + yarn name "renderWorld". The old approach silently
+ * failed in MC 1.21.1 because the intermediary name had changed,
+ * meaning the mixin never injected at all.
  */
 @Environment(EnvType.CLIENT)
 @Mixin(GameRenderer.class)
@@ -37,13 +37,13 @@ public abstract class GameRendererMixin {
     private float ragdoll_smoothPitch = 0f;
 
     /**
-     * Inject at HEAD of renderWorld (method_3188) to update smoothed values.
-     * remap=false because we use the intermediary name directly.
+     * Inject at HEAD of renderWorld using remap=true so Loom resolves
+     * the yarn name to the correct intermediary/srg at build time.
      */
     @Inject(
-        method = "method_3188",
+        method = "renderWorld",
         at = @At("HEAD"),
-        remap = false
+        remap = true
     )
     private void onRenderWorldHead(RenderTickCounter tickCounter, CallbackInfo ci) {
         if (client.player == null) {
@@ -71,7 +71,6 @@ public abstract class GameRendererMixin {
         ragdoll_smoothPitch *= 0.90f;
 
         // Apply roll to camera rotation quaternion directly.
-        // Camera.getRotation() returns the live quaternion for the current frame.
         // rotateLocalZ tilts the view around the forward axis (roll).
         if (Math.abs(ragdoll_smoothRoll) > 0.001f) {
             var camera = client.gameRenderer.getCamera();

@@ -17,12 +17,11 @@ import java.util.UUID;
  *
  * Mixin target: {@link Camera}
  *
- * Intercepts getPitch() (intermediary: method_19329) to add ragdoll pitch bump.
+ * Intercepts getPitch() to add ragdoll pitch bump.
  *
- * Uses remap=false + intermediary method name to avoid refmap resolution issues
- * when the mod jar is built without a proper refmap.
- *
- * getRoll() does NOT exist in MC 1.21.1 Camera — roll is handled in GameRendererMixin.
+ * FIX: Changed from remap=false + intermediary "method_19329" to
+ * remap=true + yarn name "getPitch". The intermediary name approach
+ * silently failed to inject in MC 1.21.1.
  */
 @Environment(EnvType.CLIENT)
 @Mixin(Camera.class)
@@ -32,9 +31,9 @@ public abstract class CameraAccessor {
 
     /**
      * Intercept getPitch() to add the landing pitch bump.
-     * method_19329 = getPitch() in intermediary for MC 1.21.1
+     * remap=true so Loom maps "getPitch" to the correct intermediary.
      */
-    @Inject(method = "method_19329", at = @At("RETURN"), cancellable = true, remap = false)
+    @Inject(method = "getPitch", at = @At("RETURN"), cancellable = true, remap = true)
     private void onGetPitch(CallbackInfoReturnable<Float> cir) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null) return;

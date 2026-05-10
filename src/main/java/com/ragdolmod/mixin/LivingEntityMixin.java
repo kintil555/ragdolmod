@@ -24,10 +24,11 @@ public abstract class LivingEntityMixin {
 
     /**
      * Inject into the end of {@code travel(Vec3d moveInput)} to
-     * scale down any velocity the vanilla code just applied.
+     * replace the vanilla-applied velocity with the physics engine's velocity.
      *
-     * We clamp horizontal velocity so that vanilla WASD barely moves the player.
-     * The actual movement comes from the physics engine's impulse system.
+     * After vanilla travel() runs, the player's XZ velocity reflects normal
+     * Minecraft movement. We discard that and write the physics engine's
+     * XZ velocity instead, so ragdoll physics fully controls movement.
      */
     @Inject(method = "travel", at = @At("RETURN"))
     private void onTravelReturn(net.minecraft.util.math.Vec3d moveInput, CallbackInfo ci) {
@@ -43,17 +44,13 @@ public abstract class LivingEntityMixin {
         PlayerRagdollState state = RagdolMod.getState(player.getUuid());
         if (state == null) return;
 
-        // The physics engine has already written the correct XZ velocity
-        // back to the entity in PlayerRagdollState.tick().
-        // Here we ensure any vanilla movement residual beyond that is suppressed.
-        // We do NOT touch Y velocity (gravity/jump managed by Minecraft).
+        // Replace vanilla XZ velocity with the engine's physics velocity.
+        // Y velocity is preserved (gravity and jumping are managed by Minecraft).
         var vel = player.getVelocity();
-        double maxAllowedXZ = 0.8; // generous cap – engine handles real limiting
-        double xzSpd = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
-
-        if (xzSpd > maxAllowedXZ) {
-            double scale = maxAllowedXZ / xzSpd;
-            player.setVelocity(vel.x * scale, vel.y, vel.z * scale);
-        }
+        player.setVelocity(
+            state.engine.velocity.x,
+            vel.y,
+            state.engine.velocity.z
+        );
     }
 }

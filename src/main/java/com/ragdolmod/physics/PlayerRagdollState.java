@@ -92,16 +92,14 @@ public class PlayerRagdollState {
         engine.notifyYawDelta(yawDelta);
         prevYaw = currentYaw;
 
-        // ── Transfer Minecraft velocity into engine ────────────────────
-        // The engine tracks XZ independently; we mirror it from MC each tick.
-        engine.velocity.x = (float) vel.x;
-        engine.velocity.z = (float) vel.z;
-
         // ── Tick the physics engine ────────────────────────────────────
+        // NOTE: Do NOT overwrite engine.velocity from MC velocity here.
+        // The engine owns XZ velocity. We only read MC velocity for landing
+        // detection (above) and Y-axis (managed by Minecraft gravity).
         engine.tick(onGround, config);
 
         // ── Apply engine XZ velocity back to Minecraft entity ─────────
-        // This is the magic: we override MC's movement with our physics.
+        // This is the key: override MC's movement with our physics engine.
         if (!player.isSpectator() && !player.hasVehicle()) {
             player.setVelocity(engine.velocity.x, vel.y, engine.velocity.z);
         }
